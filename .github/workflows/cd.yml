@@ -1,0 +1,39 @@
+name: CD
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: Deployment environment
+        required: true
+        default: dev
+        type: choice
+        options:
+          - dev
+          - uat
+          - prod
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: ${{ github.event.inputs.environment }}
+
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+
+      - name: Build project
+        run: mvn -B -DskipTests package
+
+      - name: Deploy placeholder
+        run: |
+          echo "Trigger deployment for environment: ${{ github.event.inputs.environment }}"
+          echo "This project is ready for a deployment target such as Docker, Compose, or Kubernetes."
+          echo "Add your actual deploy command here for your hosting platform."
