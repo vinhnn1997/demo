@@ -1,0 +1,29 @@
+{
+  "realm": "tax-platform",
+  "enabled": true,
+  "clients": [{
+    "clientId": "tax-api",
+    "enabled": true,
+    "publicClient": false,
+    "secret": "tax-api-secret",
+    "protocolMappers": [{
+      "name": "tax-api-audience",
+      "protocol": "openid-connect",
+      "protocolMapper": "oidc-audience-mapper",
+      "config": {
+        "included.client.audience": "tax-api",
+        "access.token.claim": "true",
+        "id.token.claim": "false"
+      }
+    }],
+    "directAccessGrantsEnabled": true,
+    "serviceAccountsEnabled": true
+  }],
+  "users": [{
+    "username": "admin.user",
+    "enabled": true,
+    "credentials": [{"type": "password", "value": "admin123", "temporary": false}],
+    "realmRoles": ["tax-officer"]
+  }],
+  "roles": {"realm": [{"name": "tax-officer"}, {"name": "supervisor"}]}
+}

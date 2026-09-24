@@ -1,0 +1,5 @@
+server.port: 8081
+spring.application.name: province-service
+app.security.audience: ${KEYCLOAK_AUDIENCE:tax-api}
+spring.profiles.active: ${SPRING_PROFILES_ACTIVE:dev}
+spring.jpa.hibernate.ddl-auto: update

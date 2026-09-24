@@ -1,0 +1,2 @@
+eureka.client.service-url.defaultZone: ${EUREKA_SERVER_URL}
+spring.security.oauth2.resourceserver.jwt.issuer-uri: ${KEYCLOAK_ISSUER_URI}

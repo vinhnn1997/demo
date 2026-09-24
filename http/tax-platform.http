@@ -1,0 +1,23 @@
+@token = paste-keycloak-access-token-here
+
+### Provinces
+GET http://localhost:8088/api/provinces
+Authorization: Bearer {{token}}
+
+### Create taxpayer
+POST http://localhost:8088/api/taxpayers
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{"taxCode":"0101234567","name":"Cong ty Mau","address":"Ha Noi","provinceCode":"HN","phone":"0900000000"}
+
+### Create fine decision
+POST http://localhost:8088/api/fines
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{"decisionNumber":"QD-2026-0001","taxpayerCode":"0101234567","violation":"Cham nop ho so thue","provinceCode":"HN","amount":5000000,"issuedDate":"2026-09-24"}
+
+### Payments are created asynchronously from fine.created
+GET http://localhost:8088/api/payments
+Authorization: Bearer {{token}}

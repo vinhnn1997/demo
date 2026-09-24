@@ -1,0 +1,30 @@
+server:
+  port: ${SERVER_PORT:8088}
+spring:
+  application:
+    name: api-gateway
+  profiles.active: ${SPRING_PROFILES_ACTIVE:dev}
+  security.oauth2.resourceserver.jwt.issuer-uri: ${KEYCLOAK_ISSUER_URI:http://localhost:8080/realms/tax-platform}
+  cloud:
+    gateway:
+      discovery:
+        locator:
+          enabled: true
+          lower-case-service-id: true
+      routes:
+        - id: province-service
+          uri: lb://province-service
+          predicates: [Path=/api/provinces/**]
+        - id: organization-service
+          uri: lb://organization-service
+          predicates: [Path=/api/organizations/**]
+        - id: taxpayer-service
+          uri: lb://taxpayer-service
+          predicates: [Path=/api/taxpayers/**]
+        - id: fine-service
+          uri: lb://fine-service
+          predicates: [Path=/api/fines/**]
+        - id: payment-service
+          uri: lb://payment-service
+          predicates: [Path=/api/payments/**]
+management.endpoints.web.exposure.include: health

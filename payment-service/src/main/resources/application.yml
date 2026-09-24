@@ -1,0 +1,13 @@
+server.port: 8085
+spring.application.name: payment-service
+app.security.audience: ${KEYCLOAK_AUDIENCE:tax-api}
+app.kafka.enabled: true
+spring.profiles.active: ${SPRING_PROFILES_ACTIVE:dev}
+spring.jpa.hibernate.ddl-auto: update
+spring.kafka.bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+spring.kafka.consumer.group-id: payment-service
+spring.kafka.consumer.auto-offset-reset: earliest
+spring.kafka.consumer.key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+spring.kafka.consumer.value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+spring.kafka.consumer.properties.spring.json.trusted.packages: vn.gov.tax.common.messaging.event
+spring.kafka.consumer.properties.spring.json.value.default.type: vn.gov.tax.common.messaging.event.FineCreatedEvent
