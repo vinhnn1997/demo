@@ -2,7 +2,7 @@ package vn.gov.tax.fine;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.annotation.Import;
-import org.springframework.boot.autoconfigure.domain.EntityScan;
+import org.springframework.boot.persistence.autoconfigure.EntityScan;
 import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
 import org.springframework.cloud.openfeign.EnableFeignClients;
 import vn.gov.tax.common.security.CommonSecurityConfig;

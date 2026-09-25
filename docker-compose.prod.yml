@@ -1,0 +1,144 @@
+services:
+  sqlserver:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_SA_PASSWORD: "${MSSQL_SA_PASSWORD:?MSSQL_SA_PASSWORD is required}"
+      MSSQL_PID: Developer
+    volumes:
+      - sqlserver-data:/var/opt/mssql
+    networks:
+      - tax-platform
+
+  kafka:
+    image: bitnami/kafka:3.8
+    environment:
+      KAFKA_CFG_NODE_ID: 1
+      KAFKA_CFG_PROCESS_ROLES: broker,controller
+      KAFKA_CFG_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+      KAFKA_CFG_LISTENERS: PLAINTEXT://:9092,CONTROLLER://:9093
+      KAFKA_CFG_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
+      KAFKA_CFG_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_CFG_AUTO_CREATE_TOPICS_ENABLE: "true"
+      ALLOW_PLAINTEXT_LISTENER: "yes"
+    volumes:
+      - kafka-data:/bitnami/kafka
+    networks:
+      - tax-platform
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:25.0
+    command: start --import-realm
+    environment:
+      KC_BOOTSTRAP_ADMIN_USERNAME: "${KEYCLOAK_ADMIN_USERNAME:?KEYCLOAK_ADMIN_USERNAME is required}"
+      KC_BOOTSTRAP_ADMIN_PASSWORD: "${KEYCLOAK_ADMIN_PASSWORD:?KEYCLOAK_ADMIN_PASSWORD is required}"
+      KC_HTTP_ENABLED: "true"
+      KC_HOSTNAME_STRICT: "false"
+    volumes:
+      - ./infra/keycloak:/opt/keycloak/data/import:ro
+    ports:
+      - "${KEYCLOAK_PORT:-8080}:8080"
+    networks:
+      - tax-platform
+
+  eureka-server:
+    image: ${IMAGE_REPOSITORY:-tax-platform}/eureka-server:${IMAGE_TAG:-latest}
+    environment:
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-prod}
+      SERVER_PORT: 8761
+    ports:
+      - "${EUREKA_PORT:-8761}:8761"
+    networks:
+      - tax-platform
+
+  province-service:
+    image: ${IMAGE_REPOSITORY:-tax-platform}/province-service:${IMAGE_TAG:-latest}
+    environment: &service-environment
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-prod}
+      DB_URL: ${DB_URL:-jdbc:sqlserver://sqlserver:1433;databaseName=tax_platform;encrypt=true;trustServerCertificate=true}
+      DB_USERNAME: ${DB_USERNAME:-sa}
+      DB_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD is required}
+      EUREKA_SERVER_URL: ${EUREKA_SERVER_URL:-http://eureka-server:8761/eureka}
+      KEYCLOAK_ISSUER_URI: ${KEYCLOAK_ISSUER_URI:-http://keycloak:8080/realms/tax-platform}
+      KEYCLOAK_AUDIENCE: ${KEYCLOAK_AUDIENCE:-tax-api}
+      KAFKA_BOOTSTRAP_SERVERS: ${KAFKA_BOOTSTRAP_SERVERS:-kafka:9092}
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost:3000}
+    depends_on:
+      - sqlserver
+      - eureka-server
+      - keycloak
+    networks:
+      - tax-platform
+
+  organization-service:
+    image: ${IMAGE_REPOSITORY:-tax-platform}/organization-service:${IMAGE_TAG:-latest}
+    environment: *service-environment
+    depends_on:
+      - sqlserver
+      - eureka-server
+      - keycloak
+    networks:
+      - tax-platform
+
+  taxpayer-service:
+    image: ${IMAGE_REPOSITORY:-tax-platform}/taxpayer-service:${IMAGE_TAG:-latest}
+    environment: *service-environment
+    depends_on:
+      - sqlserver
+      - eureka-server
+      - keycloak
+    networks:
+      - tax-platform
+
+  fine-service:
+    image: ${IMAGE_REPOSITORY:-tax-platform}/fine-service:${IMAGE_TAG:-latest}
+    environment: *service-environment
+    depends_on:
+      - sqlserver
+      - kafka
+      - eureka-server
+      - keycloak
+    networks:
+      - tax-platform
+
+  payment-service:
+    image: ${IMAGE_REPOSITORY:-tax-platform}/payment-service:${IMAGE_TAG:-latest}
+    environment: *service-environment
+    depends_on:
+      - sqlserver
+      - kafka
+      - eureka-server
+      - keycloak
+    networks:
+      - tax-platform
+
+  api-gateway:
+    image: ${IMAGE_REPOSITORY:-tax-platform}/api-gateway:${IMAGE_TAG:-latest}
+    environment:
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-prod}
+      SERVER_PORT: 8088
+      EUREKA_SERVER_URL: ${EUREKA_SERVER_URL:-http://eureka-server:8761/eureka}
+      KEYCLOAK_ISSUER_URI: ${KEYCLOAK_ISSUER_URI:-http://keycloak:8080/realms/tax-platform}
+      KEYCLOAK_AUDIENCE: ${KEYCLOAK_AUDIENCE:-tax-api}
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost:3000}
+    depends_on:
+      - eureka-server
+      - keycloak
+      - province-service
+      - organization-service
+      - taxpayer-service
+      - fine-service
+      - payment-service
+    ports:
+      - "${GATEWAY_PORT:-8088}:8088"
+    networks:
+      - tax-platform
+
+volumes:
+  sqlserver-data:
+  kafka-data:
+
+networks:
+  tax-platform:
+    driver: bridge
