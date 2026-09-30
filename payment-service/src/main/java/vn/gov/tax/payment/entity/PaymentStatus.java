@@ -1,2 +1,3 @@
 package vn.gov.tax.payment.entity;
-public enum PaymentStatus { PENDING, PAID, FAILED }
+
+public enum PaymentStatus {PENDING, PAID, FAILED}

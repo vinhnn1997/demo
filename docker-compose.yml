@@ -1,4 +1,18 @@
 services:
+  redis:
+    image: redis:7.4.11-alpine
+    command: ["redis-server", "--appendonly", "yes", "--requirepass", "${REDIS_PASSWORD:?Set REDIS_PASSWORD in the environment}"]
+    ports:
+      - "127.0.0.1:6379:6379"
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli -a \"$$REDIS_PASSWORD\" ping | grep -q PONG"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?Set REDIS_PASSWORD in the environment}
   sqlserver:
     image: mcr.microsoft.com/mssql/server:2022-latest
     environment:
@@ -35,4 +49,5 @@ services:
       ALLOW_PLAINTEXT_LISTENER: "yes"
 
 volumes:
+  redis-data:
   sqlserver-data:

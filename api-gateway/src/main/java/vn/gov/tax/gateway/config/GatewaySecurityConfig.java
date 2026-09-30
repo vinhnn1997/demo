@@ -12,12 +12,13 @@ public class GatewaySecurityConfig {
     @Bean
     SecurityWebFilterChain gatewaySecurityFilterChain(ServerHttpSecurity http) {
         return http.csrf(ServerHttpSecurity.CsrfSpec::disable)
-            .authorizeExchange(exchange -> exchange
-                .pathMatchers("/actuator/health", "/error").permitAll()
-                .pathMatchers("/internal/**", "/api/**/internal/**").denyAll()
-                .pathMatchers("/api/**").authenticated()
-                .anyExchange().authenticated())
-            .oauth2ResourceServer(oauth -> oauth.jwt(jwt -> { }))
-            .build();
+                .authorizeExchange(exchange -> exchange
+                        .pathMatchers("/actuator/health/**", "/error").permitAll()
+                        .pathMatchers("/internal/**", "/api/**/internal/**").denyAll()
+                        .pathMatchers("/api/**").authenticated()
+                        .anyExchange().authenticated())
+                .oauth2ResourceServer(oauth -> oauth.jwt(jwt -> {
+                }))
+                .build();
     }
 }

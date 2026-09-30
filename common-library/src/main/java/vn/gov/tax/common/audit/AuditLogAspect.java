@@ -11,15 +11,15 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
+import lombok.RequiredArgsConstructor;
 
 @Aspect
 @Configuration
+@RequiredArgsConstructor
 public class AuditLogAspect {
     @Value("${spring.application.name:unknown-service}")
     private String serviceName;
     private final AuditLogService auditLogService;
-
-    public AuditLogAspect(AuditLogService auditLogService) { this.auditLogService = auditLogService; }
 
     @Around("within(@org.springframework.web.bind.annotation.RestController *)")
     public Object audit(ProceedingJoinPoint joinPoint) throws Throwable {
@@ -46,7 +46,7 @@ public class AuditLogAspect {
             String uri = request == null ? null : request.getRequestURI();
             String error = failure == null ? null : failure.getClass().getSimpleName() + ": " + failure.getMessage();
             auditLogService.record(serviceName, joinPoint.getSignature().toShortString(), uri, username,
-                status, System.currentTimeMillis() - startedAt, error);
+                    status, System.currentTimeMillis() - startedAt, error);
         } catch (Exception ignored) {
             // Audit failure must never break the business request.
         }

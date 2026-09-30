@@ -14,5 +14,7 @@ import vn.gov.tax.common.security.CommonSecurityConfig;
 @EnableJpaRepositories("vn.gov.tax")
 @EnableFeignClients(basePackages = "vn.gov.tax")
 public class ProvinceServiceApplication {
-    public static void main(String[] args) { SpringApplication.run(ProvinceServiceApplication.class, args); }
+    public static void main(String[] args) {
+        SpringApplication.run(ProvinceServiceApplication.class, args);
+    }
 }

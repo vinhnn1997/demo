@@ -23,35 +23,39 @@ import vn.gov.tax.common.messaging.CommonKafkaConfig;
 
 @Configuration
 @EnableMethodSecurity
-@Import({GlobalExceptionHandler.class, AuditLogAspect.class, AuditLogService.class, CommonKafkaConfig.class})
+@Import({GlobalExceptionHandler.class, AuditLogAspect.class, AuditLogService.class, CommonKafkaConfig.class,
+        TokenRevocationConfiguration.class})
 public class CommonSecurityConfig {
     @Bean
     JwtDecoder jwtDecoder(
-        @Value("${spring.security.oauth2.resourceserver.jwt.issuer-uri}") String issuer,
-        @Value("${app.security.audience:tax-api}") String audience) {
+            @Value("${spring.security.oauth2.resourceserver.jwt.issuer-uri}") String issuer,
+            @Value("${app.security.audience:tax-api}") String audience,
+            JwtRevocationValidator revocationValidator) {
         JwtDecoder decoder = JwtDecoders.fromIssuerLocation(issuer);
         OAuth2TokenValidator<Jwt> issuerValidator = JwtValidators.createDefaultWithIssuer(issuer);
         OAuth2TokenValidator<Jwt> audienceValidator = new JwtAudienceValidator(audience);
         ((org.springframework.security.oauth2.jwt.NimbusJwtDecoder) decoder).setJwtValidator(
-            new DelegatingOAuth2TokenValidator<>(issuerValidator, audienceValidator));
+                new DelegatingOAuth2TokenValidator<>(issuerValidator, audienceValidator, revocationValidator));
         return decoder;
     }
 
     @Bean
-    JwtAuthenticationConverter jwtAuthenticationConverter() {
-        return KeycloakJwtAuthenticationConverter.create();
+    JwtAuthenticationConverter jwtAuthenticationConverter(
+            @Value("${app.security.client-id:tax-api}") String clientId) {
+        return KeycloakJwtAuthenticationConverter.create(clientId);
     }
 
     @Bean
-    SecurityFilterChain commonSecurityFilterChain(HttpSecurity http) throws Exception {
+    SecurityFilterChain commonSecurityFilterChain(
+            HttpSecurity http, JwtAuthenticationConverter jwtAuthenticationConverter) throws Exception {
         return http.csrf(csrf -> csrf.disable())
-            .authorizeHttpRequests(auth -> auth
-                .requestMatchers("/actuator/health", "/error", "/internal/**", "/api/**/internal/**").permitAll()
-                .requestMatchers(HttpMethod.DELETE, "/api/**").hasRole("supervisor")
-                .requestMatchers("/api/**").hasAnyRole("tax-officer", "supervisor")
-                .anyRequest().authenticated())
-            .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-            .oauth2ResourceServer(oauth -> oauth.jwt(jwt -> jwt.jwtAuthenticationConverter(jwtAuthenticationConverter())))
-            .build();
+                .authorizeHttpRequests(auth -> auth
+                        .requestMatchers("/actuator/health/**", "/error", "/internal/**", "/api/**/internal/**").permitAll()
+                        .requestMatchers(HttpMethod.DELETE, "/api/**").hasRole("supervisor")
+                        .requestMatchers("/api/**").hasAnyRole("tax-officer", "supervisor")
+                        .anyRequest().authenticated())
+                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .oauth2ResourceServer(oauth -> oauth.jwt(jwt -> jwt.jwtAuthenticationConverter(jwtAuthenticationConverter)))
+                .build();
     }
 }

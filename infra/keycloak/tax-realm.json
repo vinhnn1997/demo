@@ -25,5 +25,5 @@
     "credentials": [{"type": "password", "value": "admin123", "temporary": false}],
     "realmRoles": ["tax-officer"]
   }],
-  "roles": {"realm": [{"name": "tax-officer"}, {"name": "supervisor"}]}
+  "roles": {"realm": [{"name": "tax-officer"}, {"name": "supervisor"}, {"name": "user-admin"}]}
 }
