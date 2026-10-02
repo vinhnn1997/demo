@@ -14,7 +14,7 @@ public class GatewaySecurityConfig {
         return http.csrf(ServerHttpSecurity.CsrfSpec::disable)
                 .authorizeExchange(exchange -> exchange
                         .pathMatchers("/actuator/health/**", "/error").permitAll()
-                        .pathMatchers("/internal/**", "/api/**/internal/**").denyAll()
+                        .pathMatchers("/internal/**", "/api/*/internal/**").denyAll()
                         .pathMatchers("/api/**").authenticated()
                         .anyExchange().authenticated())
                 .oauth2ResourceServer(oauth -> oauth.jwt(jwt -> {

@@ -1,6 +1,6 @@
 services:
   redis:
-    image: redis:7.4.11-alpine
+    image: redis:7.4-alpine
     command: ["redis-server", "--appendonly", "yes", "--requirepass", "${REDIS_PASSWORD:?Set REDIS_PASSWORD in the environment}"]
     ports:
       - "127.0.0.1:6379:6379"
@@ -20,9 +20,33 @@ services:
       MSSQL_SA_PASSWORD: "${MSSQL_SA_PASSWORD:-YourStrong!Passw0rd}"
       MSSQL_PID: Developer
     ports:
-      - "1433:1433"
+      - "127.0.0.1:1433:1433"
     volumes:
       - sqlserver-data:/var/opt/mssql
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P \"$$MSSQL_SA_PASSWORD\" -C -Q \"SELECT 1\" -b"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+  sqlserver-init:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    entrypoint: ["/opt/mssql-tools18/bin/sqlcmd"]
+    command:
+      - -S
+      - sqlserver
+      - -U
+      - sa
+      - -P
+      - "${MSSQL_SA_PASSWORD:-YourStrong!Passw0rd}"
+      - -C
+      - -b
+      - -Q
+      - "IF DB_ID(N'tax_platform') IS NULL CREATE DATABASE [tax_platform];"
+    depends_on:
+      sqlserver:
+        condition: service_healthy
+    restart: "no"
   keycloak:
     image: quay.io/keycloak/keycloak:25.0
     command: start-dev --import-realm
@@ -34,7 +58,7 @@ services:
     volumes:
       - ./infra/keycloak:/opt/keycloak/data/import
   kafka:
-    image: bitnami/kafka:3.8
+    image: bitnamilegacy/kafka:3.8
     ports:
       - "9092:9092"
     environment:

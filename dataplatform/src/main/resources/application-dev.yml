@@ -1,0 +1,3 @@
+spring.config.import: "optional:file:../.env[.properties],optional:file:.env[.properties]"
+spring.jpa.hibernate.ddl-auto: update
+spring.data.redis.ssl.enabled: false

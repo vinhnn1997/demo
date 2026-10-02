@@ -21,3 +21,19 @@ Content-Type: application/json
 ### Payments are created asynchronously from fine.created
 GET http://localhost:8088/api/payments
 Authorization: Bearer {{token}}
+
+### Admin role management (requires user-admin token, e.g. role.admin)
+GET http://localhost:8088/api/admin/users?search=admin
+Authorization: Bearer {{token}}
+
+GET http://localhost:8088/api/admin/roles
+Authorization: Bearer {{token}}
+
+GET http://localhost:8088/api/admin/users/{{userId}}/roles
+Authorization: Bearer {{token}}
+
+PUT http://localhost:8088/api/admin/users/{{userId}}/roles
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{"roles":["tax-officer"]}

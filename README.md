@@ -14,6 +14,7 @@ Spring Boot microservices for managing tax administrative fines in Vietnam.
 - `fine-service` - violation records, fine decisions and Kafka events.
 - `payment-service` - receives `fine.created` and tracks payment requests.
 - `identity-service` - admin-only API for looking up realm users and updating their application roles through Keycloak.
+- `dataplatform` - tenant-scoped source and dataset catalog APIs under `/api/v1/**`.
 
 ## Shared Kafka and Feign
 
@@ -33,6 +34,8 @@ docker compose up -d
 
 This starts local Redis on `6379`, SQL Server on `1433`, Kafka on `9092`, and Keycloak on `8080`. Eureka is a Spring Boot module and runs on `8761`. Set the same random `REDIS_PASSWORD` for Compose and the Spring services before starting them. The Compose Redis instance is for development; production should use a managed or clustered Redis deployment with TLS, ACL credentials, high availability, and persistence enabled.
 
+The `sqlserver-init` job waits for SQL Server to become healthy and creates the shared `tax_platform` database if it does not exist. Development services then create/update their tables through Hibernate. Use the same `MSSQL_SA_PASSWORD` and `DB_PASSWORD` values in `.env`; SQL Server requires a strong password. SQL Server is published on `127.0.0.1:1433` for local access only.
+
 Copy `.env.example` to `.env` and replace development secrets before starting Compose.
 
 ## Environments
@@ -50,7 +53,7 @@ Use `dev` for local defaults, `uat` for shared testing and `prod` for production
 
 ## Internal whitelist
 
-The common security config permits only `/internal/**` and `/api/**/internal/**` without JWT. All normal business endpoints remain authenticated. The Feign sample uses `/api/provinces/internal/{id}`. Keep these routes reachable only on a private service network; the whitelist is not a substitute for mTLS or network policy.
+The common security config permits only `/internal/**` and `/api/*/internal/**` without JWT. All normal business endpoints remain authenticated. The Feign sample uses `/api/provinces/internal/{id}`. Keep these routes reachable only on a private service network; the whitelist is not a substitute for mTLS or network policy.
 
 Keycloak is available at http://localhost:8080 (admin/admin). Realm import is in `infra/keycloak/tax-realm.json`.
 
@@ -76,6 +79,40 @@ mvn -pl province-service spring-boot:run
 ```
 
 Run Eureka before the clients, then run each service in a separate terminal. The gateway uses `lb://...` routes resolved by Eureka. Eureka dashboard: http://localhost:8761. Gateway: http://localhost:8088.
+
+The data platform registers with Eureka on port `8087` and stores catalog tables in the shared `tax_platform` database. Its APIs require a Keycloak `tenant_id` claim; `tax-officer` and `supervisor` can read sources/datasets, and only `supervisor` can create sources.
+
+### MSSQL source management
+
+Set `DATAPLATFORM_ENCRYPTION_KEY` in `.env` to a Base64-encoded 32-byte key. The development `.env` is git-ignored. Production must inject a different key through the deployment secret store; losing or rotating the key without re-encrypting credentials makes stored source passwords unreadable.
+
+Run the service with `mvn -pl dataplatform -am spring-boot:run`. Supported source types are `MSSQL`, `MYSQL`, `POSTGRESQL`, and `ORACLE`. Through the gateway, send `POST /api/v1/sources/connection-test` a body with `type` and the `connection` object below to test without saving. `POST /api/v1/sources` creates a source after a successful connection test; `GET /api/v1/sources` and `GET /api/v1/sources/{id}` list and view sources; `PUT /api/v1/sources/{id}` updates one; `DELETE /api/v1/sources/{id}` removes it. Read operations allow `tax-officer` and `supervisor`; connection tests and mutations require `supervisor`. Every operation is tenant-scoped by the JWT `tenant_id` claim.
+
+Create and update requests separate business metadata from the connection profile:
+
+```json
+{
+  "metadata": {
+    "type": "MSSQL",
+    "name": "tax-reporting",
+    "description": "SQL Server reporting source"
+  },
+  "connection": {
+    "host": "sql.example.internal",
+    "port": 1433,
+    "databaseName": "reporting",
+    "schemaName": "dbo",
+    "username": "report_reader",
+    "password": "<secret>",
+    "encrypt": true,
+    "trustServerCertificate": false
+  }
+}
+```
+
+For Oracle, `databaseName` is the service name. TLS uses TCPS and the JVM truststore; set `trustServerCertificate` to `false` and configure the trusted CA in the runtime truststore.
+
+The password is encrypted with AES-GCM and stored separately from source metadata. It is never included in source API responses. On update, omit or leave `password` blank to keep the existing credential.
 
 Obtain a token from Keycloak:
 

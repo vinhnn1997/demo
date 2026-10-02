@@ -10,8 +10,16 @@ services:
     networks:
       - tax-platform
 
+  redis:
+    image: redis:7.4-alpine
+    command: ["redis-server", "--appendonly", "yes", "--requirepass", "${REDIS_PASSWORD:?REDIS_PASSWORD is required}"]
+    volumes:
+      - redis-data:/data
+    networks:
+      - tax-platform
+
   kafka:
-    image: bitnami/kafka:3.8
+    image: bitnamilegacy/kafka:3.8
     environment:
       KAFKA_CFG_NODE_ID: 1
       KAFKA_CFG_PROCESS_ROLES: broker,controller
@@ -63,9 +71,14 @@ services:
       KEYCLOAK_ISSUER_URI: ${KEYCLOAK_ISSUER_URI:-http://keycloak:8080/realms/tax-platform}
       KEYCLOAK_AUDIENCE: ${KEYCLOAK_AUDIENCE:-tax-api}
       KAFKA_BOOTSTRAP_SERVERS: ${KAFKA_BOOTSTRAP_SERVERS:-kafka:9092}
+      REDIS_HOST: ${REDIS_HOST:-redis}
+      REDIS_PORT: ${REDIS_PORT:-6379}
+      REDIS_USERNAME: ${REDIS_USERNAME:-default}
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?REDIS_PASSWORD is required}
       CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost:3000}
     depends_on:
       - sqlserver
+      - redis
       - eureka-server
       - keycloak
     networks:
@@ -76,6 +89,7 @@ services:
     environment: *service-environment
     depends_on:
       - sqlserver
+      - redis
       - eureka-server
       - keycloak
     networks:
@@ -86,6 +100,7 @@ services:
     environment: *service-environment
     depends_on:
       - sqlserver
+      - redis
       - eureka-server
       - keycloak
     networks:
@@ -96,6 +111,7 @@ services:
     environment: *service-environment
     depends_on:
       - sqlserver
+      - redis
       - kafka
       - eureka-server
       - keycloak
@@ -107,7 +123,36 @@ services:
     environment: *service-environment
     depends_on:
       - sqlserver
+      - redis
       - kafka
+      - eureka-server
+      - keycloak
+    networks:
+      - tax-platform
+
+  identity-service:
+    image: ${IMAGE_REPOSITORY:-tax-platform}/identity-service:${IMAGE_TAG:-latest}
+    environment:
+      <<: *service-environment
+      KEYCLOAK_ADMIN_URL: ${KEYCLOAK_ADMIN_URL:-http://keycloak:8080}
+      KEYCLOAK_ADMIN_CLIENT_ID: ${KEYCLOAK_ADMIN_CLIENT_ID:-tax-admin-api}
+      KEYCLOAK_ADMIN_CLIENT_SECRET: ${KEYCLOAK_ADMIN_CLIENT_SECRET:?KEYCLOAK_ADMIN_CLIENT_SECRET is required}
+    depends_on:
+      - sqlserver
+      - redis
+      - eureka-server
+      - keycloak
+    networks:
+      - tax-platform
+
+  dataplatform:
+    image: ${IMAGE_REPOSITORY:-tax-platform}/dataplatform:${IMAGE_TAG:-latest}
+    environment:
+      <<: *service-environment
+      DATAPLATFORM_ENCRYPTION_KEY: ${DATAPLATFORM_ENCRYPTION_KEY:?DATAPLATFORM_ENCRYPTION_KEY is required}
+    depends_on:
+      - sqlserver
+      - redis
       - eureka-server
       - keycloak
     networks:
@@ -130,6 +175,8 @@ services:
       - taxpayer-service
       - fine-service
       - payment-service
+      - identity-service
+      - dataplatform
     ports:
       - "${GATEWAY_PORT:-8088}:8088"
     networks:
@@ -138,6 +185,7 @@ services:
 volumes:
   sqlserver-data:
   kafka-data:
+  redis-data:
 
 networks:
   tax-platform:

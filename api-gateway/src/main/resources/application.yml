@@ -30,4 +30,7 @@ spring:
         - id: identity-service
           uri: lb://identity-service
           predicates: [Path=/api/admin/**]
+        - id: dataplatform
+          uri: lb://dataplatform
+          predicates: [Path=/api/v1/**]
 management.endpoints.web.exposure.include: health

@@ -34,7 +34,7 @@ pipeline {
                     set -eu
                     echo "$REGISTRY_CREDENTIALS_PSW" | docker login "$REGISTRY" \\
                       --username "$REGISTRY_CREDENTIALS_USR" --password-stdin
-                    for service in eureka-server api-gateway province-service organization-service taxpayer-service fine-service payment-service; do
+                    for service in eureka-server api-gateway province-service organization-service taxpayer-service fine-service payment-service identity-service dataplatform; do
                       docker build -f "$service/Dockerfile" -t "$IMAGE_REPOSITORY/$service:$IMAGE_TAG" .
                       docker push "$IMAGE_REPOSITORY/$service:$IMAGE_TAG"
                     done

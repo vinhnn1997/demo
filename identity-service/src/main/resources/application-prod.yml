@@ -1,0 +1,23 @@
+spring:
+  datasource:
+    url: ${DB_URL}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+    driver-class-name: com.microsoft.sqlserver.jdbc.SQLServerDriver
+  security.oauth2.resourceserver.jwt.issuer-uri: ${KEYCLOAK_ISSUER_URI}
+  jpa.hibernate.ddl-auto: validate
+eureka.client.service-url.defaultZone: ${EUREKA_SERVER_URL}
+spring.data.redis.host: ${REDIS_HOST}
+spring.data.redis.port: ${REDIS_PORT:6379}
+spring.data.redis.username: ${REDIS_USERNAME}
+spring.data.redis.password: ${REDIS_PASSWORD}
+spring.data.redis.connect-timeout: ${REDIS_CONNECT_TIMEOUT:1s}
+spring.data.redis.timeout: ${REDIS_TIMEOUT:500ms}
+spring.data.redis.ssl.enabled: true
+spring.data.redis.lettuce.pool.max-active: ${REDIS_POOL_MAX_ACTIVE:32}
+spring.data.redis.lettuce.pool.max-idle: ${REDIS_POOL_MAX_IDLE:16}
+spring.data.redis.lettuce.pool.min-idle: ${REDIS_POOL_MIN_IDLE:4}
+spring.data.redis.lettuce.pool.max-wait: ${REDIS_POOL_MAX_WAIT:250ms}
+app.keycloak.admin-url: ${KEYCLOAK_ADMIN_URL}
+app.keycloak.admin-client-id: ${KEYCLOAK_ADMIN_CLIENT_ID}
+app.keycloak.admin-client-secret: ${KEYCLOAK_ADMIN_CLIENT_SECRET}

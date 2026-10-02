@@ -3,4 +3,5 @@ target/
 .vscode/
 *.iml
 *.log
+.env
 .env.production
