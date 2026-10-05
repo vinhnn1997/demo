@@ -16,6 +16,12 @@ Spring Boot microservices for managing tax administrative fines in Vietnam.
 - `identity-service` - admin-only API for looking up realm users and updating their application roles through Keycloak.
 - `dataplatform` - tenant-scoped source and dataset catalog APIs under `/api/v1/**`.
 
+### Independently versioned common library
+
+`common-library` is published as an independent Maven artifact (`vn.gov.tax:common-library`). Each consuming service pins its own version with `<common-library.version>` in its POM, so services can upgrade independently. Configure `COMMON_MAVEN_REPOSITORY_URL` and a Maven `settings.xml` server with ID `common-library`; the Jenkins credential for that settings file is named `maven-settings`.
+
+To publish a shared-library change, increment `<version>` in `common-library/pom.xml` and run the Jenkins job with `PUBLISH_COMMON_LIBRARY=true`. Then update `<common-library.version>` only in the POMs of services that need the change. Set `BUILD_SERVICE` to the affected service to test, build, push, and deploy only that service. Use `all` for a full release. Standalone local build: `mvn -f dataplatform/pom.xml spring-boot:run`; that service resolves its pinned common artifact instead of building the common module. For common-library development inside the reactor, `mvn -pl dataplatform -am test` still builds it from source.
+
 ## Shared Kafka and Feign
 
 Kafka topic and event contract are centralized in `common-library`:
@@ -70,6 +76,8 @@ $env:SPRING_PROFILES_ACTIVE = "local"
 
 For a different environment, create `application-<profile>.yml` in each service and start with `SPRING_PROFILES_ACTIVE=<profile>`.
 
+Before deploying services with `ddl-auto: validate`, apply `deploy/migrations/001_create_audit_logs.sql` to the application database. The migration is idempotent and creates the shared audit table used by `common-library`; run it as a deployment migration using the same DB credentials and target database configured for the services.
+
 ## Run services
 
 ```bash
@@ -80,13 +88,17 @@ mvn -pl province-service spring-boot:run
 
 Run Eureka before the clients, then run each service in a separate terminal. The gateway uses `lb://...` routes resolved by Eureka. Eureka dashboard: http://localhost:8761. Gateway: http://localhost:8088.
 
-The data platform registers with Eureka on port `8087` and stores catalog tables in the shared `tax_platform` database. Its APIs require a Keycloak `tenant_id` claim; `tax-officer` and `supervisor` can read sources/datasets, and only `supervisor` can create sources.
+### Swagger / OpenAPI
+
+Services using `common-library` expose Swagger UI at `/swagger-ui/index.html` and OpenAPI JSON at `/v3/api-docs` when running with the default `dev` or `uat` profile. The API gateway Swagger UI aggregates the service specs at `http://localhost:8088/swagger-ui/index.html`; Eureka has its own UI at `http://localhost:8761/swagger-ui/index.html`. Use the **Authorize** button and a bearer access token to try protected operations. Production profiles disable Swagger by default; set `SWAGGER_ENABLED=true` only when documentation access is intentionally enabled.
+
+The data platform registers with Eureka on port `8087` and stores catalog tables in the shared `tax_platform` database. Its APIs use the Keycloak `tenant_id` claim when present, or the authenticated user's subject (`sub`) when it is absent. JWT authentication remains required; `tax-officer` and `supervisor` can read sources/datasets, and only `supervisor` can create sources.
 
 ### MSSQL source management
 
 Set `DATAPLATFORM_ENCRYPTION_KEY` in `.env` to a Base64-encoded 32-byte key. The development `.env` is git-ignored. Production must inject a different key through the deployment secret store; losing or rotating the key without re-encrypting credentials makes stored source passwords unreadable.
 
-Run the service with `mvn -pl dataplatform -am spring-boot:run`. Supported source types are `MSSQL`, `MYSQL`, `POSTGRESQL`, and `ORACLE`. Through the gateway, send `POST /api/v1/sources/connection-test` a body with `type` and the `connection` object below to test without saving. `POST /api/v1/sources` creates a source after a successful connection test; `GET /api/v1/sources` and `GET /api/v1/sources/{id}` list and view sources; `PUT /api/v1/sources/{id}` updates one; `DELETE /api/v1/sources/{id}` removes it. Read operations allow `tax-officer` and `supervisor`; connection tests and mutations require `supervisor`. Every operation is tenant-scoped by the JWT `tenant_id` claim.
+Run the service with `mvn -f dataplatform/pom.xml spring-boot:run` after publishing/resolving its pinned `common-library` version. During common-library development, use `mvn -pl dataplatform -am spring-boot:run` to build it from the reactor. Supported source types are `MSSQL`, `MYSQL`, `POSTGRESQL`, and `ORACLE`. Through the gateway, send `POST /api/v1/sources/connection-test` a body with `type` and the `connection` object below to test without saving. `POST /api/v1/sources` creates a source after a successful connection test; `GET /api/v1/sources` and `GET /api/v1/sources/{id}` list and view sources; `PUT /api/v1/sources/{id}` updates one; `DELETE /api/v1/sources/{id}` removes it. Read operations allow `tax-officer` and `supervisor`; connection tests and mutations require `supervisor`. Every operation is scoped by `tenant_id` when present, otherwise by the authenticated JWT subject (`sub`).
 
 Create and update requests separate business metadata from the connection profile:
 
@@ -127,7 +139,17 @@ curl -X POST http://localhost:8080/realms/tax-platform/protocol/openid-connect/t
 
 Send it with `Authorization: Bearer <token>`. Replace the sample credentials in non-development environments.
 
-JWT validation requires issuer, audience `tax-api`, expiry and Keycloak roles. The `tax-officer` and `supervisor` roles are allowed to call protected APIs. Configure frontend origins with `CORS_ALLOWED_ORIGINS`, for example `http://localhost:3000`; do not use `*` with credentials enabled.
+JWT validation requires issuer, audience `tax-api`, expiry and Keycloak roles. The `tax-officer` and `supervisor` roles are allowed to call protected APIs. Configure browser origins with `CORS_ALLOWED_ORIGINS`, for example `http://localhost:3000,http://localhost:8088`; the setting applies to both the gateway and direct Data Platform API access. Do not use `*` with credentials enabled.
+
+### Data platform pipelines and Airflow
+
+`dataplatform` owns pipeline configuration, schema validation, execution records, and Airflow triggering. Create a pipeline with `POST /api/v1/pipelines`; its `definition` uses schema version `1` and contains the source table, watermark column, keys, Bronze/Silver/Gold/ClickHouse targets, cleaning rules, and DQ rules. The supported cleaning operations are `TRIM`, `NORMALIZE_WHITESPACE`, `LOWERCASE`, and `UPPERCASE`; DQ rule types are `NOT_NULL`, `UNIQUE`, `REGEX`, `MIN`, and `MAX`.
+
+Call `POST /api/v1/pipelines/{id}/compile` to validate the configured columns against the live source schema. Invalid plans return validation errors and are not sent to Airflow. Call `POST /api/v1/pipelines/{id}/runs` to launch a run (`202 Accepted`), then poll `GET /api/v1/executions/{executionId}` for run and task states. `GET /api/v1/pipelines/{id}/runs` lists past runs.
+
+Configure the external Airflow REST API with `AIRFLOW_BASE_URL`, `AIRFLOW_API_PREFIX` (default `/api/v1`; set `/api/v2` if required by the Airflow deployment), and `AIRFLOW_DAG_ID`. Authenticate with `AIRFLOW_API_TOKEN` or `AIRFLOW_API_USERNAME` and `AIRFLOW_API_PASSWORD`. The Airflow trigger conf contains the execution ID and credential-free execution plan. The worker obtains an audience-validated Keycloak service-account token for the `dataplatform-worker` client and calls `GET /api/v1/internal/executions/{executionId}/source-connection`; this endpoint requires the `data-platform-worker` realm role and only serves credentials for an active execution. Keep this endpoint private and use TLS between Airflow and `dataplatform`.
+
+Airflow owns the data plane: INS extraction, Bronze/Silver/Gold writes, quarantine, DQ, ClickHouse load, reconciliation, and watermark commit. The DAG must only advance its source watermark after DQ and reconciliation succeed and the commit/audit step completes; on failure it must preserve the previous watermark. `dataplatform` records Airflow status but never advances the watermark itself. The ClickHouse-backed Data Service / BI query endpoint remains a separate integration from this run-control API.
 
 ### Keycloak role management
 
@@ -153,4 +175,4 @@ Immediate invalidation applies to role changes made through `identity-service`. 
 
 The application uses Redis `GET`/`SET` and an atomic Lua script (`EVAL`/`EVALSHA`) for revocation cutoffs. Health checks also require `PING`. Restrict the Redis ACL user to these commands and the `tax-platform:security:revoked-before:*` key pattern (adjust the pattern if `TOKEN_REVOCATION_KEY_PREFIX` changes). The production profiles require `REDIS_HOST`, `REDIS_USERNAME`, and `REDIS_PASSWORD`, enable TLS, and use short connection/command timeouts with a bounded Lettuce pool. Readiness checks include Redis; liveness checks do not. Redis persistence/replication must preserve recent revocation keys across failover; otherwise old JWTs could become valid again before their natural expiration.
 
-After changing `tax-realm.json`, recreate the development Keycloak realm/container or add the `tax-api-audience` protocol mapper and `user-admin` realm role manually, because Keycloak does not re-import an already existing realm automatically.
+After changing `tax-realm.json`, recreate the development Keycloak realm/container or add the `tax-api-audience` protocol mapper, `user-admin` role, and `dataplatform-worker` client/service-account role manually, because Keycloak does not re-import an already existing realm automatically.

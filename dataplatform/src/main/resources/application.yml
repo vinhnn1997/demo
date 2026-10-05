@@ -21,6 +21,14 @@ spring.data.redis.ssl.enabled: ${REDIS_SSL_ENABLED:false}
 dataplatform.credentials.encryption-key: ${DATAPLATFORM_ENCRYPTION_KEY:}
 app.security.revocation.key-prefix: ${TOKEN_REVOCATION_KEY_PREFIX:tax-platform:security:revoked-before:}
 app.security.revocation.ttl: ${TOKEN_REVOCATION_TTL:15m}
+dataplatform.airflow.base-url: ${AIRFLOW_BASE_URL:http://localhost:8081}
+dataplatform.airflow.api-prefix: ${AIRFLOW_API_PREFIX:/api/v1}
+dataplatform.airflow.dag-id: ${AIRFLOW_DAG_ID:tax_data_pipeline}
+dataplatform.airflow.username: ${AIRFLOW_API_USERNAME:}
+dataplatform.airflow.password: ${AIRFLOW_API_PASSWORD:}
+dataplatform.airflow.api-token: ${AIRFLOW_API_TOKEN:}
+dataplatform.airflow.connect-timeout: ${AIRFLOW_CONNECT_TIMEOUT:3s}
+dataplatform.airflow.read-timeout: ${AIRFLOW_READ_TIMEOUT:10s}
 management.endpoints.web.exposure.include: health
 management.endpoint.health.show-details: never
 management.endpoint.health.probes.enabled: true

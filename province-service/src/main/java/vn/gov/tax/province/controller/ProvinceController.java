@@ -3,6 +3,7 @@ package vn.gov.tax.province.controller;
 import java.util.List;
 
 import org.springframework.http.HttpStatus;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import vn.gov.tax.common.response.ApiResponse;
 import vn.gov.tax.province.entity.Province;
@@ -27,6 +28,7 @@ public class ProvinceController {
     }
 
     @GetMapping("/internal/{id}")
+    @PreAuthorize("hasAnyRole('tax-officer','supervisor')")
     public ApiResponse<Province> findInternalById(@PathVariable Long id) {
         return findById(id);
     }

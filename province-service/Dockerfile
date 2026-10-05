@@ -1,7 +1,12 @@
+# syntax=docker/dockerfile:1.7
 FROM maven:3.9.9-eclipse-temurin-21 AS build
 WORKDIR /workspace
 COPY . .
-RUN mvn -B -pl province-service -am clean package -DskipTests
+ARG COMMON_MAVEN_REPOSITORY_URL
+ENV COMMON_MAVEN_REPOSITORY_URL=${COMMON_MAVEN_REPOSITORY_URL}
+RUN --mount=type=secret,id=maven_settings,target=/root/.m2/settings.xml,required=false \
+	test -n "$COMMON_MAVEN_REPOSITORY_URL" && \
+	mvn -B -f province-service/pom.xml clean package -DskipTests
 
 FROM eclipse-temurin:21-jre
 WORKDIR /app

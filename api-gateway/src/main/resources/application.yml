@@ -7,30 +7,77 @@ spring:
   security.oauth2.resourceserver.jwt.issuer-uri: ${KEYCLOAK_ISSUER_URI:http://localhost:8080/realms/tax-platform}
   cloud:
     gateway:
-      discovery:
-        locator:
-          enabled: true
-          lower-case-service-id: true
-      routes:
-        - id: province-service
-          uri: lb://province-service
-          predicates: [Path=/api/provinces/**]
-        - id: organization-service
-          uri: lb://organization-service
-          predicates: [Path=/api/organizations/**]
-        - id: taxpayer-service
-          uri: lb://taxpayer-service
-          predicates: [Path=/api/taxpayers/**]
-        - id: fine-service
-          uri: lb://fine-service
-          predicates: [Path=/api/fines/**]
-        - id: payment-service
-          uri: lb://payment-service
-          predicates: [Path=/api/payments/**]
-        - id: identity-service
-          uri: lb://identity-service
-          predicates: [Path=/api/admin/**]
-        - id: dataplatform
-          uri: lb://dataplatform
-          predicates: [Path=/api/v1/**]
+      server:
+        webflux:
+          discovery:
+            locator:
+              enabled: false
+              lower-case-service-id: true
+          routes:
+            - id: openapi-province
+              uri: lb://province-service
+              predicates: [Path=/v3/api-docs/province-service]
+              filters: [SetPath=/v3/api-docs]
+            - id: openapi-organization
+              uri: lb://organization-service
+              predicates: [Path=/v3/api-docs/organization-service]
+              filters: [SetPath=/v3/api-docs]
+            - id: openapi-taxpayer
+              uri: lb://taxpayer-service
+              predicates: [Path=/v3/api-docs/taxpayer-service]
+              filters: [SetPath=/v3/api-docs]
+            - id: openapi-fine
+              uri: lb://fine-service
+              predicates: [Path=/v3/api-docs/fine-service]
+              filters: [SetPath=/v3/api-docs]
+            - id: openapi-payment
+              uri: lb://payment-service
+              predicates: [Path=/v3/api-docs/payment-service]
+              filters: [SetPath=/v3/api-docs]
+            - id: openapi-identity
+              uri: lb://identity-service
+              predicates: [Path=/v3/api-docs/identity-service]
+              filters: [SetPath=/v3/api-docs]
+            - id: openapi-dataplatform
+              uri: lb://dataplatform
+              predicates: [Path=/v3/api-docs/dataplatform]
+              filters: [SetPath=/v3/api-docs]
+            - id: province-service
+              uri: lb://province-service
+              predicates: [Path=/api/provinces/**]
+            - id: organization-service
+              uri: lb://organization-service
+              predicates: [Path=/api/organizations/**]
+            - id: taxpayer-service
+              uri: lb://taxpayer-service
+              predicates: [Path=/api/taxpayers/**]
+            - id: fine-service
+              uri: lb://fine-service
+              predicates: [Path=/api/fines/**]
+            - id: payment-service
+              uri: lb://payment-service
+              predicates: [Path=/api/payments/**]
+            - id: identity-service
+              uri: lb://identity-service
+              predicates: [Path=/api/admin/**]
+            - id: dataplatform
+              uri: lb://dataplatform
+              predicates: [Path=/api/v1/**]
 management.endpoints.web.exposure.include: health
+springdoc.swagger-ui:
+  disable-swagger-default-url: true
+  urls:
+    - name: province-service
+      url: /v3/api-docs/province-service
+    - name: organization-service
+      url: /v3/api-docs/organization-service
+    - name: taxpayer-service
+      url: /v3/api-docs/taxpayer-service
+    - name: fine-service
+      url: /v3/api-docs/fine-service
+    - name: payment-service
+      url: /v3/api-docs/payment-service
+    - name: identity-service
+      url: /v3/api-docs/identity-service
+    - name: dataplatform
+      url: /v3/api-docs/dataplatform

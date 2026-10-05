@@ -18,6 +18,11 @@ spring.data.redis.lettuce.pool.max-active: ${REDIS_POOL_MAX_ACTIVE:32}
 spring.data.redis.lettuce.pool.max-idle: ${REDIS_POOL_MAX_IDLE:16}
 spring.data.redis.lettuce.pool.min-idle: ${REDIS_POOL_MIN_IDLE:4}
 spring.data.redis.lettuce.pool.max-wait: ${REDIS_POOL_MAX_WAIT:250ms}
+management.endpoint.health.group.readiness.include[0]: readinessState
+management.endpoint.health.group.readiness.include[1]: redis
+management.endpoint.health.group.readiness.include[2]: db
 app.keycloak.admin-url: ${KEYCLOAK_ADMIN_URL}
 app.keycloak.admin-client-id: ${KEYCLOAK_ADMIN_CLIENT_ID}
 app.keycloak.admin-client-secret: ${KEYCLOAK_ADMIN_CLIENT_SECRET}
+springdoc.api-docs.enabled: ${SWAGGER_ENABLED:false}
+springdoc.swagger-ui.enabled: ${SWAGGER_ENABLED:false}

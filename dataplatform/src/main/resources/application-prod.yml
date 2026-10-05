@@ -1,2 +1,4 @@
 spring.jpa.hibernate.ddl-auto: validate
 spring.data.redis.ssl.enabled: ${REDIS_SSL_ENABLED:true}
+springdoc.api-docs.enabled: ${SWAGGER_ENABLED:false}
+springdoc.swagger-ui.enabled: ${SWAGGER_ENABLED:false}

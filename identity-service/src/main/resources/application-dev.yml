@@ -8,3 +8,4 @@ spring:
     driver-class-name: com.microsoft.sqlserver.jdbc.SQLServerDriver
   security.oauth2.resourceserver.jwt.issuer-uri: ${KEYCLOAK_ISSUER_URI:http://localhost:8080/realms/tax-platform}
 eureka.client.service-url.defaultZone: ${EUREKA_SERVER_URL:http://localhost:8761/eureka}
+eureka.instance.hostname: ${EUREKA_INSTANCE_HOSTNAME:localhost}

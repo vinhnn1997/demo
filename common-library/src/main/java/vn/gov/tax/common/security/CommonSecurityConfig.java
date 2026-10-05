@@ -24,7 +24,9 @@ public class CommonSecurityConfig {
             HttpSecurity http, JwtAuthenticationConverter jwtAuthenticationConverter) throws Exception {
         return http.csrf(csrf -> csrf.disable())
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/actuator/health/**", "/error", "/internal/**", "/api/*/internal/**").permitAll()
+                        .requestMatchers("/actuator/health/**", "/error").permitAll()
+                        .requestMatchers("/swagger-ui.html", "/swagger-ui/**", "/v3/api-docs/**").permitAll()
+                        .requestMatchers("/internal/**", "/api/*/internal/**").authenticated()
                         .requestMatchers(HttpMethod.DELETE, "/api/**").hasRole("supervisor")
                         .requestMatchers("/api/**").hasAnyRole("tax-officer", "supervisor")
                         .anyRequest().authenticated())

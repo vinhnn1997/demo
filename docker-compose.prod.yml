@@ -55,8 +55,7 @@ services:
     environment:
       SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-prod}
       SERVER_PORT: 8761
-    ports:
-      - "${EUREKA_PORT:-8761}:8761"
+      SWAGGER_ENABLED: ${SWAGGER_ENABLED:-false}
     networks:
       - tax-platform
 
@@ -75,7 +74,7 @@ services:
       REDIS_PORT: ${REDIS_PORT:-6379}
       REDIS_USERNAME: ${REDIS_USERNAME:-default}
       REDIS_PASSWORD: ${REDIS_PASSWORD:?REDIS_PASSWORD is required}
-      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost:3000}
+      SWAGGER_ENABLED: ${SWAGGER_ENABLED:-false}
     depends_on:
       - sqlserver
       - redis
@@ -149,7 +148,16 @@ services:
     image: ${IMAGE_REPOSITORY:-tax-platform}/dataplatform:${IMAGE_TAG:-latest}
     environment:
       <<: *service-environment
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:?CORS_ALLOWED_ORIGINS is required}
       DATAPLATFORM_ENCRYPTION_KEY: ${DATAPLATFORM_ENCRYPTION_KEY:?DATAPLATFORM_ENCRYPTION_KEY is required}
+      AIRFLOW_BASE_URL: ${AIRFLOW_BASE_URL:-http://airflow:8080}
+      AIRFLOW_API_PREFIX: ${AIRFLOW_API_PREFIX:-/api/v1}
+      AIRFLOW_DAG_ID: ${AIRFLOW_DAG_ID:-tax_data_pipeline}
+      AIRFLOW_API_USERNAME: ${AIRFLOW_API_USERNAME:-}
+      AIRFLOW_API_PASSWORD: ${AIRFLOW_API_PASSWORD:-}
+      AIRFLOW_API_TOKEN: ${AIRFLOW_API_TOKEN:-}
+      AIRFLOW_CONNECT_TIMEOUT: ${AIRFLOW_CONNECT_TIMEOUT:-3s}
+      AIRFLOW_READ_TIMEOUT: ${AIRFLOW_READ_TIMEOUT:-10s}
     depends_on:
       - sqlserver
       - redis
@@ -166,7 +174,8 @@ services:
       EUREKA_SERVER_URL: ${EUREKA_SERVER_URL:-http://eureka-server:8761/eureka}
       KEYCLOAK_ISSUER_URI: ${KEYCLOAK_ISSUER_URI:-http://keycloak:8080/realms/tax-platform}
       KEYCLOAK_AUDIENCE: ${KEYCLOAK_AUDIENCE:-tax-api}
-      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost:3000}
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:?CORS_ALLOWED_ORIGINS is required}
+      SWAGGER_ENABLED: ${SWAGGER_ENABLED:-false}
     depends_on:
       - eureka-server
       - keycloak

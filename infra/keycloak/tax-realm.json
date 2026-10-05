@@ -32,18 +32,46 @@
       "directAccessGrantsEnabled": false,
       "fullScopeAllowed": true,
       "protocol": "openid-connect"
+    },
+    {
+      "clientId": "dataplatform-worker",
+      "name": "Data Platform Airflow Worker",
+      "enabled": true,
+      "publicClient": false,
+      "secret": "dataplatform-worker-secret",
+      "protocolMappers": [{
+        "name": "tax-api-audience",
+        "protocol": "openid-connect",
+        "protocolMapper": "oidc-audience-mapper",
+        "config": {
+          "included.client.audience": "tax-api",
+          "access.token.claim": "true",
+          "id.token.claim": "false"
+        }
+      }],
+      "serviceAccountsEnabled": true,
+      "standardFlowEnabled": false,
+      "directAccessGrantsEnabled": false
     }
   ],
   "users": [
     {
       "username": "admin.user",
       "enabled": true,
+      "firstName": "Admin",
+      "lastName": "User",
+      "email": "admin.user@tax-platform.local",
+      "emailVerified": true,
       "credentials": [{"type": "password", "value": "admin123", "temporary": false}],
       "realmRoles": ["tax-officer"]
     },
     {
       "username": "role.admin",
       "enabled": true,
+      "firstName": "Role",
+      "lastName": "Admin",
+      "email": "role.admin@tax-platform.local",
+      "emailVerified": true,
       "credentials": [{"type": "password", "value": "admin123", "temporary": false}],
       "realmRoles": ["user-admin"]
     },
@@ -59,13 +87,20 @@
           "view-realm"
         ]
       }
+    },
+    {
+      "username": "service-account-dataplatform-worker",
+      "enabled": true,
+      "serviceAccountClientId": "dataplatform-worker",
+      "realmRoles": ["data-platform-worker"]
     }
   ],
   "roles": {
     "realm": [
       {"name": "tax-officer"},
       {"name": "supervisor"},
-      {"name": "user-admin"}
+      {"name": "user-admin"},
+      {"name": "data-platform-worker"}
     ]
   }
 }

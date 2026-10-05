@@ -1,8 +1,8 @@
 package vn.gov.tax.dataplatform.source.connector;
 
 import org.springframework.stereotype.Component;
-import vn.gov.tax.dataplatform.source.DatabaseConnectionRequest;
-import vn.gov.tax.dataplatform.source.DatabaseType;
+import vn.gov.tax.dataplatform.source.dto.DatabaseConnectionRequest;
+import vn.gov.tax.dataplatform.source.domain.DatabaseType;
 
 @Component
 public class MysqlConnectionTester extends AbstractJdbcDatabaseConnectionTester {

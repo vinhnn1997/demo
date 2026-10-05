@@ -8,15 +8,22 @@
     </parent>
     <artifactId>dataplatform</artifactId>
     <name>Data Platform Service</name>
+    <properties>
+        <common-library.version>1.0.0</common-library.version>
+    </properties>
     <dependencies>
         <dependency>
             <groupId>vn.gov.tax</groupId>
             <artifactId>common-library</artifactId>
-            <version>${project.version}</version>
+            <version>${common-library.version}</version>
         </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-web</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-restclient</artifactId>
         </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>

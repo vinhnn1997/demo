@@ -4,7 +4,8 @@ import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
 import org.springframework.stereotype.Component;
-import vn.gov.tax.dataplatform.source.DatabaseType;
+import vn.gov.tax.dataplatform.source.dto.DatabaseConnectionRequest;
+import vn.gov.tax.dataplatform.source.domain.DatabaseType;
 
 @Component
 public class DatabaseConnectionTesterRegistry {
@@ -26,11 +27,29 @@ public class DatabaseConnectionTesterRegistry {
     }
 
     public DatabaseConnectionTester.ConnectionTestResult test(
-            DatabaseType type, vn.gov.tax.dataplatform.source.DatabaseConnectionRequest request) {
+            DatabaseType type, DatabaseConnectionRequest request) {
         DatabaseConnectionTester tester = testers.get(type);
         if (tester == null) {
             throw new IllegalArgumentException("Unsupported database type: " + type);
         }
         return tester.test(request);
+    }
+
+    public List<DatabaseConnectionTester.DiscoveredTable> discoverTables(
+            DatabaseType type, DatabaseConnectionRequest request) {
+        DatabaseConnectionTester tester = testers.get(type);
+        if (tester == null) {
+            throw new IllegalArgumentException("Unsupported database type: " + type);
+        }
+        return tester.discoverTables(request);
+    }
+
+    public List<DatabaseConnectionTester.DiscoveredColumn> discoverColumns(
+            DatabaseType type, DatabaseConnectionRequest request, String tableName) {
+        DatabaseConnectionTester tester = testers.get(type);
+        if (tester == null) {
+            throw new IllegalArgumentException("Unsupported database type: " + type);
+        }
+        return tester.discoverColumns(request, tableName);
     }
 }
