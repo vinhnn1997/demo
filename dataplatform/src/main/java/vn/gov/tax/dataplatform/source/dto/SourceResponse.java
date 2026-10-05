@@ -25,7 +25,12 @@ public record SourceResponse(
             String databaseName,
             String schemaName,
             String username,
+            AuthenticationMethod authenticationMethod,
             boolean encrypt,
             boolean trustServerCertificate) {
+    }
+
+    public enum AuthenticationMethod {
+        USERNAME_PASSWORD
     }
 }

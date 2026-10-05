@@ -8,6 +8,7 @@ import java.util.Set;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import vn.gov.tax.dataplatform.pipeline.dto.PipelineDefinition;
+import vn.gov.tax.dataplatform.source.domain.DatabaseType;
 
 class ExecutionPlanCompilerTest {
   private final ExecutionPlanCompiler compiler = new ExecutionPlanCompiler();
@@ -15,17 +16,20 @@ class ExecutionPlanCompilerTest {
   @Test
   void compilesVersionOnePipelineDefinition() {
     var result = compiler.compile(
-      UUID.randomUUID(), UUID.randomUUID(), definition(1, "orders"), sourceColumns());
+      UUID.randomUUID(), UUID.randomUUID(), DatabaseType.MSSQL,
+      definition(1, "orders"), sourceColumns());
 
     assertTrue(result.valid());
     assertTrue(result.errors().isEmpty());
     assertTrue(result.plan() != null);
+    assertTrue(result.plan().sourceType() == DatabaseType.MSSQL);
   }
 
   @Test
   void rejectsUnsupportedPlanVersionAndUnsafeIdentifiers() {
     var result = compiler.compile(
-      UUID.randomUUID(), UUID.randomUUID(), definition(2, "orders;DROP TABLE users"), sourceColumns());
+      UUID.randomUUID(), UUID.randomUUID(), DatabaseType.MSSQL,
+      definition(2, "orders;DROP TABLE users"), sourceColumns());
 
     assertFalse(result.valid());
     assertTrue(result.errors().stream().anyMatch(error -> error.contains("schema version")));
@@ -35,7 +39,8 @@ class ExecutionPlanCompilerTest {
   @Test
   void rejectsColumnsMissingFromTheSourceSchema() {
     var result = compiler.compile(
-        UUID.randomUUID(), UUID.randomUUID(), definition(1, "dbo.orders"), Set.of("order_id"));
+        UUID.randomUUID(), UUID.randomUUID(), DatabaseType.MSSQL,
+        definition(1, "dbo.orders"), Set.of("order_id"));
 
     assertFalse(result.valid());
     assertTrue(result.errors().stream().anyMatch(error -> error.contains("watermarkColumn")));

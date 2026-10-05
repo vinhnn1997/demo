@@ -39,14 +39,21 @@ public class SourceService {
   private final PipelineRepository pipelineRepository;
   private final ExecutionRepository executionRepository;
 
-  public Page<SourceResponse> list(String tenant, Pageable pageable) {
+  public Page<SourceResponse> list(
+      String tenant, String name, DatabaseType type, Source.Status status, Pageable pageable) {
+    String searchName = name == null || name.isBlank() ? null : name.trim();
     return repository
-        .findAllByTenantIdAndStatusOrderByNameAsc(tenant, Source.Status.ACTIVE, pageable)
+        .searchByTenantAndFilters(
+            tenant,
+            type,
+            status == null ? Source.Status.ACTIVE : status,
+            searchName,
+            pageable)
         .map(mapper::toResponse);
   }
 
   public SourceResponse get(String tenant, UUID id) {
-    return mapper.toResponse(findSource(tenant, id));
+    return mapper.toResponse(findSourceById(tenant, id));
   }
 
   public DatabaseConnectionTester.ConnectionTestResult testConnection(ConnectionTestRequest request) {
@@ -55,19 +62,19 @@ public class SourceService {
   }
 
   public List<DatabaseConnectionTester.DiscoveredTable> discoverTables(String tenant, UUID id) {
-    Source source = findSource(tenant, id);
+    Source source = findActiveSource(tenant, id);
     return connectionTesters.discoverTables(source.getType(), connectionRequest(source, tenant));
   }
 
   public List<DatabaseConnectionTester.DiscoveredColumn> discoverColumns(
       String tenant, UUID id, String tableName) {
-    Source source = findSource(tenant, id);
+    Source source = findActiveSource(tenant, id);
     return connectionTesters.discoverColumns(
         source.getType(), connectionRequest(source, tenant), tableName);
   }
 
   public DatabaseConnectionRequest connectionForWorker(String tenant, UUID id) {
-    Source source = findSource(tenant, id);
+    Source source = findActiveSource(tenant, id);
     return connectionRequest(source, tenant);
   }
 
@@ -100,7 +107,7 @@ public class SourceService {
 
   @Transactional
   public SourceResponse update(String tenant, String actor, UUID id, SourceRequest request) {
-    Source source = findSource(tenant, id);
+    Source source = findActiveSource(tenant, id);
     SourceMetadataRequest metadata = request.metadata();
     DatabaseConnectionRequest connection = request.connection();
     if (repository.existsByTenantIdAndNameAndIdNot(tenant, metadata.name(), id)) {
@@ -130,7 +137,7 @@ public class SourceService {
 
   @Transactional
   public SourceResponse delete(String tenant, String actor, UUID id) {
-    Source source = findSource(tenant, id);
+    Source source = findActiveSource(tenant, id);
     List<UUID> pipelineIds = pipelineRepository.findAllByTenantIdAndSourceId(tenant, id).stream()
         .map(vn.gov.tax.dataplatform.pipeline.domain.Pipeline::getId)
         .toList();
@@ -153,10 +160,17 @@ public class SourceService {
     return mapper.toResponse(disabled);
   }
 
-  private Source findSource(String tenant, UUID id) {
+  private Source findSourceById(String tenant, UUID id) {
     return repository.findByTenantIdAndId(tenant, id)
-        .filter(source -> source.getStatus() == Source.Status.ACTIVE)
         .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Source not found"));
+  }
+
+  private Source findActiveSource(String tenant, UUID id) {
+    Source source = findSourceById(tenant, id);
+    if (source.getStatus() != Source.Status.ACTIVE) {
+      throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Source not found");
+    }
+    return source;
   }
 
   private String loadPassword(Source source, String tenant) {

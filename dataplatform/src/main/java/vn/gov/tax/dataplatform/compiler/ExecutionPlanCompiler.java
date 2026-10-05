@@ -9,6 +9,7 @@ import org.springframework.stereotype.Component;
 import vn.gov.tax.dataplatform.compiler.model.ExecutionPlan;
 import vn.gov.tax.dataplatform.compiler.model.PlanValidationResult;
 import vn.gov.tax.dataplatform.pipeline.dto.PipelineDefinition;
+import vn.gov.tax.dataplatform.source.domain.DatabaseType;
 
 @Component
 public class ExecutionPlanCompiler {
@@ -17,7 +18,11 @@ public class ExecutionPlanCompiler {
       Pattern.compile("[A-Za-z_][A-Za-z0-9_$]*(\\.[A-Za-z_][A-Za-z0-9_$]*)?");
 
   public PlanValidationResult compile(
-      UUID pipelineId, UUID sourceId, PipelineDefinition definition, Set<String> sourceColumns) {
+      UUID pipelineId,
+      UUID sourceId,
+      DatabaseType sourceType,
+      PipelineDefinition definition,
+      Set<String> sourceColumns) {
     List<String> errors = new ArrayList<>();
     if (definition.schemaVersion() != SUPPORTED_SCHEMA_VERSION) {
       errors.add("Unsupported execution-plan schema version; expected 1");
@@ -68,7 +73,8 @@ public class ExecutionPlanCompiler {
     if (!errors.isEmpty()) {
       return new PlanValidationResult(false, errors, null);
     }
-    ExecutionPlan plan = new ExecutionPlan(SUPPORTED_SCHEMA_VERSION, pipelineId, sourceId, definition);
+    ExecutionPlan plan =
+        new ExecutionPlan(SUPPORTED_SCHEMA_VERSION, pipelineId, sourceId, sourceType, definition);
     return new PlanValidationResult(true, List.of(), plan);
   }
 

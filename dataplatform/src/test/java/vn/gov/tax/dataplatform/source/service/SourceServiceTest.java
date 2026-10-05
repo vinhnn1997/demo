@@ -1,6 +1,7 @@
 package vn.gov.tax.dataplatform.source.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
@@ -11,11 +12,15 @@ import static org.mockito.Mockito.when;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.server.ResponseStatusException;
 import vn.gov.tax.dataplatform.execution.domain.ExecutionStatus;
@@ -27,6 +32,7 @@ import vn.gov.tax.dataplatform.source.domain.DatabaseType;
 import vn.gov.tax.dataplatform.source.domain.Source;
 import vn.gov.tax.dataplatform.source.domain.SourceConnection;
 import vn.gov.tax.dataplatform.source.domain.SourceCredential;
+import vn.gov.tax.dataplatform.source.dto.SourceResponse;
 import vn.gov.tax.dataplatform.source.mapper.SourceMapper;
 import vn.gov.tax.dataplatform.source.repository.SourceCredentialRepository;
 import vn.gov.tax.dataplatform.source.repository.SourceRepository;
@@ -55,6 +61,39 @@ class SourceServiceTest {
         connectionTesters,
         pipelineRepository,
         executionRepository);
+  }
+
+  @Test
+  void searchesSourcesByTenantNameTypeAndStatus() {
+    Source source = source();
+    PageRequest pageable = PageRequest.of(0, 20);
+    when(sourceRepository.searchByTenantAndFilters(
+        TENANT_ID, DatabaseType.MSSQL, Source.Status.ACTIVE, "legacy", pageable))
+        .thenReturn(new PageImpl<>(List.of(source), pageable, 1));
+
+    var result = service.list(TENANT_ID, " legacy ", DatabaseType.MSSQL, null, pageable);
+
+    assertEquals(1, result.getTotalElements());
+    assertEquals(source.getId(), result.getContent().getFirst().id());
+    verify(sourceRepository).searchByTenantAndFilters(
+        TENANT_ID, DatabaseType.MSSQL, Source.Status.ACTIVE, "legacy", pageable);
+  }
+
+  @Test
+  void returnsDisabledSourceDetailsWithoutExposingPassword() throws JsonProcessingException {
+    Source source = source();
+    source.setStatus(Source.Status.DISABLED);
+    when(sourceRepository.findByTenantIdAndId(TENANT_ID, source.getId()))
+        .thenReturn(Optional.of(source));
+
+    var result = service.get(TENANT_ID, source.getId());
+
+    assertEquals(Source.Status.DISABLED, result.status());
+    assertEquals(
+        SourceResponse.AuthenticationMethod.USERNAME_PASSWORD,
+        result.connection().authenticationMethod());
+    assertEquals("reader", result.connection().username());
+    assertFalse(new ObjectMapper().writeValueAsString(result).contains("\"password\""));
   }
 
   @Test

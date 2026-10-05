@@ -1,12 +1,14 @@
 package vn.gov.tax.dataplatform.source.controller;
 
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Size;
 import java.util.UUID;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -20,26 +22,36 @@ import org.springframework.web.bind.annotation.RestController;
 import vn.gov.tax.common.response.ApiResponse;
 import vn.gov.tax.dataplatform.response.PageResponse;
 import vn.gov.tax.dataplatform.security.TenantContext;
+import vn.gov.tax.dataplatform.source.connector.DatabaseConnectionTester;
+import vn.gov.tax.dataplatform.source.domain.DatabaseType;
+import vn.gov.tax.dataplatform.source.domain.Source;
 import vn.gov.tax.dataplatform.source.dto.ConnectionTestRequest;
 import vn.gov.tax.dataplatform.source.dto.SourceRequest;
 import vn.gov.tax.dataplatform.source.dto.SourceResponse;
 import vn.gov.tax.dataplatform.source.service.SourceService;
-import vn.gov.tax.dataplatform.source.connector.DatabaseConnectionTester;
 
 @RestController
 @RequestMapping("/api/v1/sources")
 @RequiredArgsConstructor
+@Validated
 public class SourceController {
   private final SourceService service;
 
   @GetMapping
   @PreAuthorize("hasAnyRole('tax-officer','supervisor')")
   public ApiResponse<PageResponse<SourceResponse>> list(
-      @RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue = "20") int size) {
+      @RequestParam(defaultValue = "0") int page,
+      @RequestParam(defaultValue = "20") int size,
+      @RequestParam(required = false) @Size(max = 120) String name,
+      @RequestParam(required = false) DatabaseType type,
+      @RequestParam(required = false) Source.Status status) {
     return ApiResponse.success(
         PageResponse.from(
             service.list(
                 requireTenant(),
+                name,
+                type,
+                status,
                 PageRequest.of(Math.max(0, page), Math.min(Math.max(size, 1), 100)))));
   }
 

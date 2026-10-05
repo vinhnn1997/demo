@@ -94,6 +94,8 @@ Services using `common-library` expose Swagger UI at `/swagger-ui/index.html` an
 
 The data platform registers with Eureka on port `8087` and stores catalog tables in the shared `tax_platform` database. Its APIs use the Keycloak `tenant_id` claim when present, or the authenticated user's subject (`sub`) when it is absent. JWT authentication remains required; `tax-officer` and `supervisor` can read sources/datasets, and only `supervisor` can create sources.
 
+To search source connections, call `GET /api/v1/sources` with optional `name` (case-insensitive partial match), `type` (`MSSQL`, `MYSQL`, `POSTGRESQL`, or `ORACLE`), and `status` (`ACTIVE` or `DISABLED`) filters plus `page` and `size`. Omitting `status` preserves the default active-only list. For example, `GET /api/v1/sources?type=MSSQL&name=tax&status=ACTIVE&page=0&size=20` searches the current tenant's active MSSQL sources. Select a result and call `GET /api/v1/sources/{id}` for connection host, port, database/schema, username, authentication method, and status. Disabled source details remain searchable by explicitly filtering `status=DISABLED`; disabled sources cannot be used for table discovery or execution. Passwords are never returned by list or detail APIs.
+
 ### MSSQL source management
 
 Set `DATAPLATFORM_ENCRYPTION_KEY` in `.env` to a Base64-encoded 32-byte key. The development `.env` is git-ignored. Production must inject a different key through the deployment secret store; losing or rotating the key without re-encrypting credentials makes stored source passwords unreadable.
@@ -143,11 +145,47 @@ JWT validation requires issuer, audience `tax-api`, expiry and Keycloak roles. T
 
 ### Data platform pipelines and Airflow
 
-`dataplatform` owns pipeline configuration, schema validation, execution records, and Airflow triggering. Create a pipeline with `POST /api/v1/pipelines`; its `definition` uses schema version `1` and contains the source table, watermark column, keys, Bronze/Silver/Gold/ClickHouse targets, cleaning rules, and DQ rules. The supported cleaning operations are `TRIM`, `NORMALIZE_WHITESPACE`, `LOWERCASE`, and `UPPERCASE`; DQ rule types are `NOT_NULL`, `UNIQUE`, `REGEX`, `MIN`, and `MAX`.
+`dataplatform` is the source of truth for source connection metadata, pipeline definitions, and execution records. Airflow owns DAG/task state and data-plane job execution; both sides should persist the shared `sourceId`, `pipelineId`, and `executionId` so they can reconcile the same run without maintaining conflicting copies of source configuration. Create a pipeline with `POST /api/v1/pipelines`; its `definition` uses schema version `1` and contains the source table, watermark column, keys, Bronze/Silver/Gold/ClickHouse targets, cleaning rules, and DQ rules. The source database type is read from the registered source and included in every compiled execution plan. The supported cleaning operations are `TRIM`, `NORMALIZE_WHITESPACE`, `LOWERCASE`, and `UPPERCASE`; DQ rule types are `NOT_NULL`, `UNIQUE`, `REGEX`, `MIN`, and `MAX`.
 
 Call `POST /api/v1/pipelines/{id}/compile` to validate the configured columns against the live source schema. Invalid plans return validation errors and are not sent to Airflow. Call `POST /api/v1/pipelines/{id}/runs` to launch a run (`202 Accepted`), then poll `GET /api/v1/executions/{executionId}` for run and task states. `GET /api/v1/pipelines/{id}/runs` lists past runs.
 
-Configure the external Airflow REST API with `AIRFLOW_BASE_URL`, `AIRFLOW_API_PREFIX` (default `/api/v1`; set `/api/v2` if required by the Airflow deployment), and `AIRFLOW_DAG_ID`. Authenticate with `AIRFLOW_API_TOKEN` or `AIRFLOW_API_USERNAME` and `AIRFLOW_API_PASSWORD`. The Airflow trigger conf contains the execution ID and credential-free execution plan. The worker obtains an audience-validated Keycloak service-account token for the `dataplatform-worker` client and calls `GET /api/v1/internal/executions/{executionId}/source-connection`; this endpoint requires the `data-platform-worker` realm role and only serves credentials for an active execution. Keep this endpoint private and use TLS between Airflow and `dataplatform`.
+Configure the external Airflow REST API with `AIRFLOW_BASE_URL`, `AIRFLOW_API_PREFIX` (default `/api/v1`; set `/api/v2` if required by the Airflow deployment), and `AIRFLOW_DAG_ID`. Authenticate with `AIRFLOW_API_TOKEN` or `AIRFLOW_API_USERNAME` and `AIRFLOW_API_PASSWORD`. Data Platform triggers Airflow with `POST {AIRFLOW_BASE_URL}{AIRFLOW_API_PREFIX}/dags/{AIRFLOW_DAG_ID}/dagRuns`. The Airflow request body is:
+
+```json
+{
+  "dag_run_id": "manual__<unique-run-id>",
+  "conf": {
+    "execution_id": "<execution-uuid>",
+    "plan": {
+      "schemaVersion": 1,
+      "pipelineId": "<pipeline-uuid>",
+      "sourceId": "<source-uuid>",
+      "sourceType": "MSSQL",
+      "definition": {
+        "schemaVersion": 1,
+        "sourceTable": "dbo.orders",
+        "watermarkColumn": "updated_at",
+        "keyColumns": ["order_id"],
+        "bronzeTable": "bronze.orders",
+        "silverTable": "silver.orders",
+        "goldTable": "gold.orders",
+        "clickHouseTable": "analytics.orders",
+        "cleaningRules": [],
+        "dqRules": [
+          {
+            "name": "order-id-required",
+            "column": "order_id",
+            "type": "NOT_NULL",
+            "value": null
+          }
+        ]
+      }
+    }
+  }
+}
+```
+
+`sourceType` is one of `MSSQL`, `MYSQL`, `POSTGRESQL`, or `ORACLE`; `definition.sourceTable` identifies the exact input table. The plan is credential-free. The Airflow worker obtains an audience-validated Keycloak service-account token for the `dataplatform-worker` client and calls `GET /api/v1/internal/executions/{executionId}/source-connection`; the response envelope's `data` contains the connection settings, including the password needed for the active run. The endpoint requires the `data-platform-worker` realm role and only serves credentials for an active execution. Keep this endpoint private and use TLS between Airflow and `dataplatform`; never persist source passwords in Airflow DAG configuration or run metadata.
 
 Airflow owns the data plane: INS extraction, Bronze/Silver/Gold writes, quarantine, DQ, ClickHouse load, reconciliation, and watermark commit. The DAG must only advance its source watermark after DQ and reconciliation succeed and the commit/audit step completes; on failure it must preserve the previous watermark. `dataplatform` records Airflow status but never advances the watermark itself. The ClickHouse-backed Data Service / BI query endpoint remains a separate integration from this run-control API.
 

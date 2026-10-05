@@ -42,6 +42,7 @@ public class SourceMapper {
             connection.getDatabaseName(),
             connection.getSchemaName(),
             connection.getUsername(),
+            SourceResponse.AuthenticationMethod.USERNAME_PASSWORD,
             connection.isEncrypt(),
             connection.isTrustServerCertificate()),
         source.getStatus(),

@@ -71,10 +71,11 @@ public class PipelineService {
 
   public PlanValidationResult compile(String tenantId, UUID id) {
     Pipeline pipeline = findPipeline(tenantId, id);
-    requireActiveSource(tenantId, pipeline.getSourceId());
+    Source source = requireActiveSource(tenantId, pipeline.getSourceId());
     try {
       return compiler.compile(
           pipeline.getId(), pipeline.getSourceId(),
+          source.getType(),
           objectMapper.readValue(pipeline.getDefinitionJson(), PipelineDefinition.class),
           sourceColumns(tenantId, pipeline));
     } catch (JsonProcessingException exception) {
@@ -95,8 +96,8 @@ public class PipelineService {
     return sourceService.connectionForWorker(tenantId, sourceId);
   }
 
-  private void requireActiveSource(String tenantId, UUID sourceId) {
-    sourceRepository.findByTenantIdAndId(tenantId, sourceId)
+  private Source requireActiveSource(String tenantId, UUID sourceId) {
+    return sourceRepository.findByTenantIdAndId(tenantId, sourceId)
         .filter(source -> source.getStatus() == Source.Status.ACTIVE)
         .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Active source not found"));
   }
